@@ -4,8 +4,8 @@
 BASE_DIR="$(realpath "$(dirname "$0")")"
 REPO_DIR="$BASE_DIR/zapret-latest"
 REPO_URL="https://github.com/Flowseal/zapret-discord-youtube"
-NFQWS_PATH="$BASE_DIR/nfqws"
-CONF_FILE="$BASE_DIR/conf.env"
+DVTWS_PATH="$BASE_DIR/bsd/dvtws"
+CONF_FILE="$BASE_DIR/bsd/conf.env"
 STOP_SCRIPT="$BASE_DIR/stop_and_clean_nft.sh"
 
 # Флаг отладки
@@ -38,7 +38,7 @@ handle_error() {
 
 # Функция для проверки наличия необходимых утилит
 check_dependencies() {
-    local deps=("git" "nft" "grep" "sed")
+    local deps=("git" "grep" "sudo" "sed")
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
             handle_error "Не установлена утилита $dep"
@@ -154,12 +154,12 @@ parse_bat_file() {
         if [[ "$line" =~ --filter-(tcp|udp)=([0-9,-]+)[[:space:]](.*?)(--new|$) ]]; then
             local protocol="${BASH_REMATCH[1]}"
             local ports="${BASH_REMATCH[2]}"
-            local nfqws_args="${BASH_REMATCH[3]}"
+            local dvtws_args="${BASH_REMATCH[3]}"
             
             nft_rules+=("$protocol dport {$ports} counter queue num $queue_num bypass")
-            nfqws_params+=("$nfqws_args")
+            dvtws_params+=("$dvtws_args")
             debug_log "Matched protocol: $protocol, ports: $ports, queue: $queue_num"
-            debug_log "NFQWS parameters for queue $queue_num: $nfqws_args"
+            debug_log "dvtws parameters for queue $queue_num: $dvtws_args"
             
             ((queue_num++))
         fi
@@ -193,15 +193,17 @@ setup_nftables() {
     done
 }
 
-# Функция запуска nfqws
-start_nfqws() {
-    log "Запуск процессов nfqws..."
-    sudo pkill -f nfqws
+# Функция запуска dvtws
+start_dvtws() {
+    log "Запуск процессов dvtws..."
+    sudo pkill -f dvtws
     cd "$REPO_DIR" || handle_error "Не удалось перейти в директорию $REPO_DIR"
-    for queue_num in "${!nfqws_params[@]}"; do
-        debug_log "Запуск nfqws с параметрами: $NFQWS_PATH --daemon --qnum=$queue_num ${nfqws_params[$queue_num]}"
-        eval "sudo $NFQWS_PATH --daemon --qnum=$queue_num ${nfqws_params[$queue_num]}" ||
-        handle_error "Ошибка при запуске nfqws для очереди $queue_num"
+    for queue_num in "${!dvtws_params[@]}"; do
+        debug_log "Запуск dvtws с параметрами: $DVTWS_PATH --daemon --qnum=$queue_num ${dvtws_params[$queue_num]}"
+        eval "ipfw delete 100"
+		eval "ipfw add 100 divert 989 tcp from any to any 80,443 out not diverted xmit em0"
+		eval "sudo $DVTWS_PATH --daemon --qnum=$queue_num ${dvtws_params[$queue_num]}" ||
+        handle_error "Ошибка при запуске dvtws для очереди $queue_num"
     done
 }
 
@@ -238,7 +240,7 @@ main() {
         done
         setup_nftables "$interface"
     fi
-    start_nfqws
+    start_dvtws
     log "Настройка успешно завершена"
 }
 
