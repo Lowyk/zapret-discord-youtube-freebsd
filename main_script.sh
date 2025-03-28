@@ -6,7 +6,7 @@ REPO_DIR="$BASE_DIR/zapret-latest"
 REPO_URL="https://github.com/Flowseal/zapret-discord-youtube"
 DVTWS_PATH="$BASE_DIR/bsd/dvtws"
 CONF_FILE="$BASE_DIR/bsd/conf.env"
-STOP_SCRIPT="$BASE_DIR/stop_and_clean_nft.sh"
+STOP_SCRIPT="$BASE_DIR/stop_and_clean_dvt.sh"
 
 # Флаг отладки
 DEBUG=false
@@ -38,7 +38,7 @@ handle_error() {
 
 # Функция для проверки наличия необходимых утилит
 check_dependencies() {
-    local deps=("git" "grep" "sudo" "sed")
+    local deps=("git" "grep" "sudo" "sed" "ipfw")
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
             handle_error "Не установлена утилита $dep"
@@ -156,7 +156,7 @@ parse_bat_file() {
             local ports="${BASH_REMATCH[2]}"
             local dvtws_args="${BASH_REMATCH[3]}"
             
-            nft_rules+=("$protocol dport {$ports} counter queue num $queue_num bypass")
+            dvt_rules+=("$protocol dport {$ports} counter queue num $queue_num bypass")
             dvtws_params+=("$dvtws_args")
             debug_log "Matched protocol: $protocol, ports: $ports, queue: $queue_num"
             debug_log "dvtws parameters for queue $queue_num: $dvtws_args"
@@ -166,30 +166,30 @@ parse_bat_file() {
     done < <(grep -v "^@echo" "$file" | grep -v "^chcp" | tr -d '\r')
 }
 
-# Обновленная функция настройки nftables с метками
-setup_nftables() {
+# Обновленная функция настройки dvtws с метками
+setup_dvtws() {
     local interface="$1"
     local table_name="inet zapretunix"
     local chain_name="output"
     local rule_comment="Added by zapret script"
     
-    log "Настройка nftables с очисткой только помеченных правил..."
+    log "Настройка dvt с очисткой только помеченных правил..."
     
     # Удаляем существующую таблицу, если она была создана этим скриптом
-    if sudo nft list tables | grep -q "$table_name"; then
-        sudo nft flush chain $table_name $chain_name
-        sudo nft delete chain $table_name $chain_name
-        sudo nft delete table $table_name
+    if sudo dvt list tables | grep -q "$table_name"; then
+        sudo dvt flush chain $table_name $chain_name
+        sudo dvt delete chain $table_name $chain_name
+        sudo dvt delete table $table_name
     fi
     
     # Добавляем таблицу и цепочку
-    sudo nft add table $table_name
-    sudo nft add chain $table_name $chain_name { type filter hook output priority 0\; }
+    sudo dvt add table $table_name
+    sudo dvt add chain $table_name $chain_name { type filter hook output priority 0\; }
     
     # Добавляем правила с пометкой
-    for queue_num in "${!nft_rules[@]}"; do
-        sudo nft add rule $table_name $chain_name oifname \"$interface\" ${nft_rules[$queue_num]} comment \"$rule_comment\" ||
-        handle_error "Ошибка при добавлении правила nftables для очереди $queue_num"
+    for queue_num in "${!dvt_rules[@]}"; do
+        sudo dvt add rule $table_name $chain_name oifname \"$interface\" ${dvt_rules[$queue_num]} comment \"$rule_comment\" ||
+        handle_error "Ошибка при добавлении правила dvtws для очереди $queue_num"
     done
 }
 
@@ -223,7 +223,7 @@ main() {
     
     if $NOINTERACTIVE; then
         select_strategy
-        setup_nftables "$interface"
+        setup_dvtws "$interface"
     else
         select_strategy
         local interfaces=($(ls /sys/class/net))
@@ -238,7 +238,7 @@ main() {
             fi
             echo "Неверный выбор. Попробуйте еще раз."
         done
-        setup_nftables "$interface"
+        setup_dvtws "$interface"
     fi
     start_dvtws
     log "Настройка успешно завершена"

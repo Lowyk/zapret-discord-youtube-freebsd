@@ -1,14 +1,12 @@
 # Что это?
 
 Это адаптер для запуска популярных конфигураций обхода замедления YouTube  
-на базе [Zapret Discord Youtube Flowseal](https://github.com/Flowseal/zapret-discord-youtube).  
-Скрипт создан за пару вечеров с целью сделать его Plug-And-Play.
-
-**Проверено на:**  
-- Ubuntu 24.04
-- Arch Linux
+на базе [Zapret Discord Youtube - Flowseal](https://github.com/Flowseal/zapret-discord-youtube), [Zapret Discord Youtube Linux - Sergeydigl3](https://github.com/Sergeydigl3/zapret-discord-youtube-linux).  
 
 ---
+
+# Требования
+```sudo , git , grep , sed , ipfw```
 
 # Как запустить
 
@@ -56,9 +54,9 @@
 
 # Важно
 
-- Скрипт работает только с **nftables**.
-- При остановке скрипта все добавленные правила фаервола очищаются, а фоновые процессы `nfqws` останавливаются.
-- Если у вас настроены кастомные правила в nftables, сделайте их резервное копирование — скрипт может удалить их при запуске.
+- Скрипт работает только с **dvtws**.
+- При остановке скрипта все добавленные правила фаервола очищаются, а фоновые процессы `dvtws` останавливаются.
+- Если у вас настроены кастомные правила в dvtws, сделайте их резервное копирование — скрипт может удалить их при запуске.
 
 ---
 
