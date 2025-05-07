@@ -9,7 +9,7 @@ CONF_FILE="$BASE_DIR/bsd/conf.env"
 STOP_SCRIPT="$BASE_DIR/stop_and_clean_dvt.sh"
 
 # Флаг отладки
-DEBUG=false
+DEBUG=true
 NOINTERACTIVE=false
 
 
@@ -38,7 +38,7 @@ handle_error() {
 
 # Функция для проверки наличия необходимых утилит
 check_dependencies() {
-    local deps=("git" "grep" "sudo" "sed" "ipfw")
+    local deps=("git" "grep" "sudo" "sed" "ipfw" "ifconfig")
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" >/dev/null 2>&1; then
             handle_error "Не установлена утилита $dep"
@@ -176,19 +176,19 @@ setup_dvtws() {
     log "Настройка dvt с очисткой только помеченных правил..."
     
     # Удаляем существующую таблицу, если она была создана этим скриптом
-    if sudo dvt list tables | grep -q "$table_name"; then
-        sudo dvt flush chain $table_name $chain_name
-        sudo dvt delete chain $table_name $chain_name
-        sudo dvt delete table $table_name
+    if sudo $DVTWS_PATH list tables | grep -q "$table_name"; then
+        sudo $DVTWS_PATH flush chain $table_name $chain_name
+        sudo $DVTWS_PATH delete chain $table_name $chain_name
+        sudo $DVTWS_PATH delete table $table_name
     fi
     
     # Добавляем таблицу и цепочку
-    sudo dvt add table $table_name
-    sudo dvt add chain $table_name $chain_name { type filter hook output priority 0\; }
+    sudo $DVTWS_PATH add table $table_name
+    sudo $DVTWS_PATH chain $table_name $chain_name { type filter hook output priority 0\; }
     
     # Добавляем правила с пометкой
     for queue_num in "${!dvt_rules[@]}"; do
-        sudo dvt add rule $table_name $chain_name oifname \"$interface\" ${dvt_rules[$queue_num]} comment \"$rule_comment\" ||
+        sudo $DVTWS_PATH add rule $table_name $chain_name oifname \"$interface\" ${dvt_rules[$queue_num]} comment \"$rule_comment\" ||
         handle_error "Ошибка при добавлении правила dvtws для очереди $queue_num"
     done
 }
@@ -226,7 +226,7 @@ main() {
         setup_dvtws "$interface"
     else
         select_strategy
-        local interfaces=($(ls /sys/class/net))
+        local interfaces=($(ifconfig -l))
         if [ ${#interfaces[@]} -eq 0 ]; then
             handle_error "Не найдены сетевые интерфейсы"
         fi
@@ -249,5 +249,5 @@ main "$@"
 
 trap _term SIGINT
 
-sleep infinity &
-wait
+while true; do sleep 86000 &
+wait; done
