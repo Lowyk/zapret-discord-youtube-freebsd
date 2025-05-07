@@ -6,7 +6,7 @@
 ---
 
 # Требования
-```sudo , git , grep , sed , ipfw```
+```sudo , git ,``` ~~grep , sed , ipfw~~ Встроенны в FreeBSD``` , bash```
 
 # Как запустить
 
